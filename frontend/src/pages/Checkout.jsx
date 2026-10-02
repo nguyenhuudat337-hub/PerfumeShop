@@ -11,6 +11,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [shippingAddress, setShippingAddress] = useState('')
+  const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
 
@@ -43,19 +44,32 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-
+  
     if (!shippingAddress.trim()) {
       setError('Vui lòng nhập địa chỉ giao hàng')
       return
     }
-
+  
+    if (!phone.trim()) {
+      setError('Vui lòng nhập số điện thoại')
+      return
+    }
+  
+    const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/
+    const normalizedPhone = phone.replace(/\s/g, '')
+  
+    if (!phoneRegex.test(normalizedPhone)) {
+      setError('Số điện thoại không hợp lệ. Ví dụ: 0901234567')
+      return
+    }
+  
     setSubmitting(true)
     try {
-      const res = await api.post('/orders', {
+      await api.post('/orders', {
         shipping_address: shippingAddress.trim(),
+        phone: normalizedPhone,
         note: note.trim() || null,
       })
-      // Đặt hàng thành công → chuyển sang trang đơn hàng
       navigate('/orders', { state: { message: 'Đặt hàng thành công!' } })
     } catch (err) {
       setError(err.response?.data?.message || 'Đặt hàng thất bại')
@@ -81,6 +95,19 @@ export default function Checkout() {
             {error && (
               <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
             )}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Số điện thoại <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="09xxxxxxxx"
+                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                required
+              />
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-1">

@@ -3,6 +3,7 @@
 import express from 'express'
 import pool from '../db/pool.js'
 import { protect } from '../middleware/auth.js'
+import { adminOnly } from '../middleware/admin.js'
 
 //tạo router
 const router = express.Router()
@@ -12,10 +13,22 @@ router.post('/', protect, async (req, res) => {
   const client = await pool.connect() // lấy 1 connection riêng để transaction
 
   try {
-    const { phone_number,shipping_address, note } = req.body
+    const { shipping_address, note,phone  } = req.body
 
-    if (!phone_number) {
+    if (!phone) {
       return res.status(400).json({ message: 'Số điện thoại là bắt buộc' })
+    }
+
+    // Chỉ cho phép số, có thể bắt đầu bằng 0 hoặc +84
+    // Ví dụ hợp lệ: 0901234567, 0912345678, +84901234567
+    const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/
+
+    const normalizedPhone = phone.replace(/\s/g, '') // bỏ khoảng trắng
+
+    if (!phoneRegex.test(normalizedPhone)) {
+      return res.status(400).json({
+        message: 'Số điện thoại không hợp lệ. Ví dụ: 0901234567',
+      })
     }
 
     if (!shipping_address) {
@@ -58,10 +71,10 @@ router.post('/', protect, async (req, res) => {
 
     // 4. Tạo đơn hàng
     const orderResult = await client.query(
-      `INSERT INTO orders (user_id, total_amount, shipping_address, note, status)
-       VALUES ($1, $2, $3, $4, 'pending')
+      `INSERT INTO orders (user_id, total_amount, shipping_address,phone, note, status)
+       VALUES ($1, $2, $3, $4,$5, 'pending')
        RETURNING *`,
-      [req.user.id, totalAmount, shipping_address, note || null]
+      [req.user.id, totalAmount, shipping_address, normalizedPhone, note || null]
     )
 
     const order = orderResult.rows[0]
@@ -110,7 +123,7 @@ router.post('/', protect, async (req, res) => {
 router.get('/', protect, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, total_amount, status, shipping_address, note, created_at
+      `SELECT id, total_amount, status, shipping_address,phone, note, created_at
        FROM orders
        WHERE user_id = $1
        ORDER BY created_at DESC`,
@@ -124,12 +137,32 @@ router.get('/', protect, async (req, res) => {
   }
 })
 
+
+
+// ==================== ADMIN: LẤY TẤT CẢ ĐƠN HÀNG ====================
+router.get('/admin/all', protect, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT o.id, o.total_amount, o.status, o.shipping_address, o.phone, o.note, o.created_at,
+              u.name AS user_name, u.email AS user_email
+       FROM orders o
+       JOIN users u ON o.user_id = u.id
+       ORDER BY o.created_at DESC`
+    )
+    res.json(result.rows)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Lỗi server' })
+  }
+})
+
+
 // ==================== LẤY CHI TIẾT 1 ĐƠN HÀNG ====================
 router.get('/:id', protect, async (req, res) => {
   try {
     // Lấy thông tin đơn
     const orderResult = await pool.query(
-      `SELECT id, total_amount, status, shipping_address, note, created_at
+      `SELECT id, total_amount, status, shipping_address,phone, note, created_at
        FROM orders
        WHERE id = $1 AND user_id = $2`,
       [req.params.id, req.user.id]
@@ -163,5 +196,45 @@ router.get('/:id', protect, async (req, res) => {
     res.status(500).json({ message: 'Lỗi server' })
   }
 })
+
+
+
+
+// ==================== ADMIN: CẬP NHẬT TRẠNG THÁI ĐƠN ====================
+//patch dùng để cập nhật một phần resource
+router.patch('/:id/status', protect, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.body
+    const allowed = ['pending', 'confirmed', 'shipping', 'completed', 'cancelled']
+
+    if (!status || !allowed.includes(status)) {
+      return res.status(400).json({
+        message: `Status phải là một trong: ${allowed.join(', ')}`,
+      })
+    }
+
+    const result = await pool.query(
+      `UPDATE orders
+       SET status = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, status, total_amount, created_at`,
+      [status, req.params.id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
+    }
+
+    res.json({
+      message: 'Cập nhật trạng thái thành công',
+      order: result.rows[0],
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Lỗi server' })
+  }
+})
+
+
 
 export default router

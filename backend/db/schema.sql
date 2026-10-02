@@ -77,3 +77,10 @@ CREATE INDEX idx_products_brand ON products(brand_id);
 CREATE INDEX idx_products_gender ON products(gender);
 CREATE INDEX idx_cart_user ON cart_items(user_id);
 CREATE INDEX idx_orders_user ON orders(user_id);
+
+
+--Thêm cột phone vào bảng orders để lưu số điện thoại của khách hàng
+ALTER TABLE orders
+ADD COLUMN phone VARCHAR(20);
+
+

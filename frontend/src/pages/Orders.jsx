@@ -96,6 +96,9 @@ export default function Orders() {
                     <p className="text-sm text-gray-500">
                       Mã đơn: <span className="font-mono text-gray-700">{order.id.slice(0, 8)}...</span>
                     </p>
+                    <p className="text-sm text-gray-500 mb-1">
+                      Số điện thoại: <span className="font-mono text-gray-700">{order.phone}</span>
+                    </p>
                     <p className="text-sm text-gray-500">
                       {new Date(order.created_at).toLocaleString('vi-VN')}
                     </p>
@@ -135,9 +138,14 @@ export default function Orders() {
                 ✕
               </button>
             </div>
-
+            <p className="text-sm text-gray-500">
+              Mã đơn: <span className="font-mono text-gray-500">{selectedOrder.id}</span>
+            </p>
             <p className="text-sm text-gray-500 mb-1">
               Ngày đặt: {new Date(selectedOrder.created_at).toLocaleString('vi-VN')}
+            </p>
+            <p className="text-sm text-gray-500 mb-1">
+              Số điện thoại: {selectedOrder.phone}
             </p>
             <p className="text-sm text-gray-500 mb-1">
               Địa chỉ: {selectedOrder.shipping_address}

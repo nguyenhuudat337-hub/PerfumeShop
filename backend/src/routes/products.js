@@ -1,7 +1,7 @@
 import express from 'express'
 import pool from '../db/pool.js'
 import { protect } from '../middleware/auth.js'
-
+import { adminOnly } from '../middleware/admin.js'
 const router = express.Router()
 
 // Lấy danh sách sản phẩm (có filter)
@@ -98,7 +98,7 @@ router.get('/:id', async (req, res) => {
 // Body có thể là:
 // 1. Object: { brand_id, name, price, ... }
 // 2. Array: [ { brand_id, name, price, ... }, { ... } ]
-router.post('/', protect, async (req, res) => {
+router.post('/', protect,adminOnly, async (req, res) => {
   try {
     const body = req.body
 
@@ -200,6 +200,97 @@ router.post('/', protect, async (req, res) => {
 })
 
 
+
+
+// ==================== ADMIN: CẬP NHẬT SẢN PHẨM ====================
+router.put('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      price,
+      stock,
+      gender,
+      volume_ml,
+      concentration,
+      image_url,
+      is_active,
+      brand_id,
+    } = req.body
+
+    const result = await pool.query(
+      `UPDATE products SET
+        name = COALESCE($1, name),
+        description = COALESCE($2, description),
+        price = COALESCE($3, price),
+        stock = COALESCE($4, stock),
+        gender = COALESCE($5, gender),
+        volume_ml = COALESCE($6, volume_ml),
+        concentration = COALESCE($7, concentration),
+        image_url = COALESCE($8, image_url),
+        is_active = COALESCE($9, is_active),
+        brand_id = COALESCE($10, brand_id),
+        updated_at = NOW()
+       WHERE id = $11
+       RETURNING *`,
+      [
+        name ?? null,
+        description ?? null,
+        price ?? null,
+        stock ?? null,
+        gender ?? null,
+        volume_ml ?? null,
+        concentration ?? null,
+        image_url ?? null,
+        is_active ?? null,
+        brand_id ?? null,
+        req.params.id,
+      ]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
+    }
+
+    res.json({
+      message: 'Cập nhật sản phẩm thành công',
+      product: result.rows[0],
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Lỗi server' })
+  }
+})
+
+
+
+
+
+// ==================== ADMIN: XÓA SẢN PHẨM ====================
+// Soft delete: is_active = false (an toàn hơn xóa cứng)
+router.delete('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE products
+       SET is_active = FALSE, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, name, is_active`,
+      [req.params.id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
+    }
+
+    res.json({
+      message: 'Đã ẩn sản phẩm (soft delete)',
+      product: result.rows[0],
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Lỗi server' })
+  }
+})
 
 
 
