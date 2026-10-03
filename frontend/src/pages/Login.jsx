@@ -21,7 +21,11 @@ export default function Login() {
     try {
       const res = await api.post('/auth/login', { email, password })
       login(res.data)
-      navigate('/')
+      if (res.data.user.role === 'admin') {
+        navigate('/admin/products')
+      }else{
+        navigate('/')
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng nhập thất bại')
     } finally {
@@ -64,6 +68,9 @@ export default function Login() {
               required
             />
           </div>
+          <Link to="/forgot-password" className="block mb-5 text-right text-sm text-rose-600 hover:underline">
+            Quên mật khẩu?
+          </Link>
           <button
             type="submit"
             disabled={loading}

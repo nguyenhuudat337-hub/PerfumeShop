@@ -8,6 +8,7 @@ export default function Register() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -20,9 +21,31 @@ export default function Register() {
     setLoading(true)
 
     try {
-      const res = await api.post('/auth/register', { name, email, password })
-      login(res.data)
-      navigate('/')
+      if (password.length <= 8) {
+        setError('Mật khẩu phải nhiều hơn 8 ký tự')
+        return
+      }
+      
+      const hasUpperCase = /[A-Z]/.test(password)
+      const hasNumber = /[0-9]/.test(password)
+      const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)
+      
+      if (!hasUpperCase || !hasNumber || !hasSpecial) {
+        setError('Mật khẩu phải có ít nhất 1 chữ in hoa, 1 số và 1 ký tự đặc biệt')
+        return
+      }
+
+      if (confirmPassword !== password) {
+        setError('Mật khẩu không khớp')
+        return
+      }
+
+      const res = await api.post('/auth/register', { name, email, password , confirmPassword})
+      // Không login(res.data)
+      setError('') // clear
+      // Hiện thông báo
+      alert('Đăng ký thành công! Vui lòng kiểm tra email để xác thực.')
+      navigate('/login')
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng ký thất bại')
     } finally {
@@ -71,6 +94,19 @@ export default function Register() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              required
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Trên 8 ký tự, có chữ hoa, số và ký tự đặc biệt (!@#$...)
+          </p>
+          <div>
+            <label className="block text-sm font-medium mb-1">Xác Nhận Mật khẩu</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500"
               required
             />

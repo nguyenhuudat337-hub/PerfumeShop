@@ -69,6 +69,30 @@ router.get('/', async (req, res) => {
   }
 })
 
+
+
+// Admin: lấy tất cả sản phẩm (kể cả đã ẩn)
+router.get('/admin/all', protect, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        p.id, p.name, p.description, p.price, p.stock,
+        p.gender, p.volume_ml, p.concentration, p.image_url,
+        p.is_active, p.created_at,
+        b.id AS brand_id, b.name AS brand_name
+       FROM products p
+       JOIN brands b ON p.brand_id = b.id
+       ORDER BY p.created_at DESC`
+    )
+    res.json(result.rows)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Lỗi server' })
+  }
+})
+
+
+
 // Lấy chi tiết 1 sản phẩm
 router.get('/:id', async (req, res) => {
   try {
